@@ -1,0 +1,1583 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hotel Booking System API",
+    "description": "Microservices-based hotel booking REST API with service discovery and API Gateway.\n\n## Microservices Architecture\n- **Booking Service** (port 8081): User management, authentication, and bookings\n- **Hotel Service** (port 8082): Hotel and room management\n- **API Gateway** (port 8080): Unified entry point for all services\n- **Eureka Server** (port 8761): Service discovery\n\n## Authentication & Authorization\nThe API uses JWT Bearer token authentication with role-based access control.\n\n### Roles:\n- **PUBLIC**: No authentication required\n- **USER**: Regular authenticated users\n- **ADMIN**: Administrative users with full access\n\n### Getting Started:\n1. Register a user via `/api/user/register` (creates USER role)\n2. Authenticate via `/api/user/auth` to get JWT token\n3. Use the token in `Authorization: Bearer <token>` header for protected endpoints\n",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Hotel Booking System"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API Gateway - Local (recommended)"
+    },
+    {
+      "url": "http://192.168.50.101:8080",
+      "description": "API Gateway - Network IP"
+    },
+    {
+      "url": "http://localhost:8081",
+      "description": "Booking Service - Direct (local)"
+    },
+    {
+      "url": "http://localhost:8082",
+      "description": "Hotel Service - Direct (local)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public",
+      "description": "Public endpoints - no authentication required"
+    },
+    {
+      "name": "User - Bookings",
+      "description": "**Role: USER**\n\nBooking management for authenticated users. Users can create, view, and cancel their own bookings.\n"
+    },
+    {
+      "name": "User - Hotels and Rooms",
+      "description": "**Role: USER**\n\nBrowse hotels and rooms. View available rooms and get recommendations for bookings.\n"
+    },
+    {
+      "name": "Admin - User Management",
+      "description": "**Role: ADMIN**\n\nAdministrative operations for user management. Create, update, and delete users with specific roles.\n"
+    },
+    {
+      "name": "Admin - Hotel Management",
+      "description": "**Role: ADMIN**\n\nAdministrative operations for hotel and room management. Create new hotels and rooms.\n"
+    },
+    {
+      "name": "Internal - Service Communication",
+      "description": "**Internal use only**\n\nInternal endpoints for inter-service communication. Not exposed through API Gateway.\n"
+    }
+  ],
+  "paths": {
+    "/api/user/register": {
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Register a new user",
+        "description": "Creates a new user account with USER role.\n\n**Access:** Public (no authentication required)\n",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegistrationRequest"
+              },
+              "examples": {
+                "newUser": {
+                  "value": {
+                    "username": "john_doe",
+                    "password": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User successfully registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "username": "john_doe",
+                      "role": "ROLE_USER"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "validationError": {
+                    "value": {
+                      "message": "Validation failed",
+                      "details": "Username must be between 3 and 50 characters"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/auth": {
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Authenticate user",
+        "description": "Authenticates user and returns JWT token valid for 1 hour.\n\n**Access:** Public (no authentication required)\n",
+        "operationId": "authenticate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationRequest"
+              },
+              "examples": {
+                "login": {
+                  "value": {
+                    "username": "john_doe",
+                    "password": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/booking": {
+      "post": {
+        "tags": [
+          "User - Bookings"
+        ],
+        "summary": "Create booking",
+        "description": "Create a new room booking. Two modes available:\n- **Manual Selection**: Specify `roomId` for a specific room\n- **Auto-Selection**: Set `autoSelect=true` and `hotelId` to automatically select the best available room based on occupancy\n\n**Access:** USER role required\n\n**Process:**\n1. User selects dates and room/hotel\n2. Booking service creates booking in PENDING status\n3. Hotel service confirms room availability\n4. Status updated to CONFIRMED or CANCELLED\n",
+        "operationId": "createBooking",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingRequest"
+              },
+              "examples": {
+                "manualBooking": {
+                  "summary": "Book specific room",
+                  "value": {
+                    "roomId": 1,
+                    "startDate": "2025-12-01",
+                    "endDate": "2025-12-05",
+                    "autoSelect": false
+                  }
+                },
+                "autoBooking": {
+                  "summary": "Auto-select best room",
+                  "value": {
+                    "hotelId": 1,
+                    "startDate": "2025-12-01",
+                    "endDate": "2025-12-05",
+                    "autoSelect": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid booking data (e.g., dates in past, end date before start date)"
+          },
+          "404": {
+            "description": "Room or hotel not found"
+          },
+          "409": {
+            "description": "Room not available for selected dates"
+          }
+        }
+      }
+    },
+    "/api/bookings": {
+      "get": {
+        "tags": [
+          "User - Bookings"
+        ],
+        "summary": "Get user bookings",
+        "description": "Get all bookings for the authenticated user, sorted by creation date (newest first).\n\nSupports optional pagination via `page` and `size` query parameters.\n\n**Access:** USER role required\n",
+        "operationId": "getUserBookings",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Page number (0-indexed). If not provided, returns all bookings without pagination.",
+            "example": 0
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Number of items per page. If not provided, returns all bookings without pagination.",
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user bookings (array if no pagination, Page object if paginated)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BookingResponse"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/BookingPage"
+                    }
+                  ]
+                },
+                "examples": {
+                  "unpaginated": {
+                    "summary": "Without pagination (default)",
+                    "value": [
+                      {
+                        "id": 1,
+                        "userId": 1,
+                        "username": "john_doe",
+                        "roomId": 1,
+                        "startDate": "2025-12-01",
+                        "endDate": "2025-12-05",
+                        "status": "CONFIRMED",
+                        "createdAt": "2025-10-19T10:30:00"
+                      }
+                    ]
+                  },
+                  "paginated": {
+                    "summary": "With pagination (page=0, size=10)",
+                    "value": {
+                      "content": [
+                        {
+                          "id": 1,
+                          "userId": 1,
+                          "username": "john_doe",
+                          "roomId": 1,
+                          "startDate": "2025-12-01",
+                          "endDate": "2025-12-05",
+                          "status": "CONFIRMED",
+                          "createdAt": "2025-10-19T10:30:00"
+                        }
+                      ],
+                      "pageable": {
+                        "pageNumber": 0,
+                        "pageSize": 10,
+                        "offset": 0
+                      },
+                      "totalElements": 25,
+                      "totalPages": 3,
+                      "last": false,
+                      "size": 10,
+                      "number": 0,
+                      "first": true,
+                      "numberOfElements": 10,
+                      "empty": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/booking/{id}": {
+      "get": {
+        "tags": [
+          "User - Bookings"
+        ],
+        "summary": "Get booking by ID",
+        "description": "Get details of a specific booking. Users can only access their own bookings.\n\n**Access:** USER role required\n",
+        "operationId": "getBookingById",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - User can only access their own bookings"
+          },
+          "404": {
+            "description": "Booking not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "User - Bookings"
+        ],
+        "summary": "Cancel booking",
+        "description": "Cancel an existing booking. This changes the booking status to CANCELLED and releases the room reservation.\n\n**Access:** USER role required\n\nUsers can only cancel their own bookings.\n",
+        "operationId": "cancelBooking",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Booking cancelled successfully"
+          },
+          "403": {
+            "description": "Forbidden - User can only cancel their own bookings"
+          },
+          "404": {
+            "description": "Booking not found"
+          },
+          "409": {
+            "description": "Booking cannot be cancelled (e.g., already cancelled)"
+          }
+        }
+      }
+    },
+    "/api/hotels": {
+      "post": {
+        "tags": [
+          "Admin - Hotel Management"
+        ],
+        "summary": "Create hotel",
+        "description": "Create a new hotel in the system.\n\n**Access:** ADMIN role required\n",
+        "operationId": "createHotel",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HotelCreateRequest"
+              },
+              "examples": {
+                "newHotel": {
+                  "value": {
+                    "name": "Grand Hotel",
+                    "address": "123 Main Street, New York, NY"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hotel created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotelDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data"
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          }
+        }
+      }
+    },
+    "/api/hotels/statistics": {
+      "get": {
+        "tags": [
+          "Admin - Hotel Management"
+        ],
+        "summary": "Get all hotels statistics",
+        "description": "Get comprehensive statistics for all hotels including occupancy rate, total reservations, and average booking frequency.\n\n**Access:** ADMIN role required\n\n**Statistics include:**\n- Total and available rooms\n- Occupancy rate (percentage)\n- Average times booked per room\n- Total confirmed reservations\n",
+        "operationId": "getAllHotelStatistics",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistics for all hotels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HotelStatisticsDTO"
+                  }
+                },
+                "examples": {
+                  "success": {
+                    "value": [
+                      {
+                        "hotelId": 1,
+                        "hotelName": "Grand Hotel",
+                        "totalRooms": 10,
+                        "availableRooms": 7,
+                        "unavailableRooms": 3,
+                        "averageTimesBooked": 12.5,
+                        "totalReservations": 45,
+                        "occupancyRate": 30.0
+                      },
+                      {
+                        "hotelId": 2,
+                        "hotelName": "Luxury Inn",
+                        "totalRooms": 5,
+                        "availableRooms": 5,
+                        "unavailableRooms": 0,
+                        "averageTimesBooked": 8.2,
+                        "totalReservations": 20,
+                        "occupancyRate": 0.0
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          }
+        }
+      }
+    },
+    "/api/hotels/{hotelId}/statistics": {
+      "get": {
+        "tags": [
+          "Admin - Hotel Management"
+        ],
+        "summary": "Get hotel statistics by ID",
+        "description": "Get comprehensive statistics for a specific hotel.\n\n**Access:** ADMIN role required\n",
+        "operationId": "getHotelStatistics",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "ID of the hotel to get statistics for",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hotel statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotelStatisticsDTO"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "hotelId": 1,
+                      "hotelName": "Grand Hotel",
+                      "totalRooms": 10,
+                      "availableRooms": 7,
+                      "unavailableRooms": 3,
+                      "averageTimesBooked": 12.5,
+                      "totalReservations": 45,
+                      "occupancyRate": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          },
+          "404": {
+            "description": "Hotel not found"
+          }
+        }
+      }
+    },
+    "/api/rooms": {
+      "post": {
+        "tags": [
+          "Admin - Hotel Management"
+        ],
+        "summary": "Create room",
+        "description": "Create a new room in a hotel.\n\n**Access:** ADMIN role required\n\nEach room is assigned a unique number within the hotel.\n",
+        "operationId": "createRoom",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomCreateRequest"
+              },
+              "examples": {
+                "newRoom": {
+                  "value": {
+                    "hotelId": 1,
+                    "number": "101"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Room created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data"
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          },
+          "404": {
+            "description": "Hotel not found"
+          }
+        }
+      }
+    },
+    "/api/rooms/recommend": {
+      "get": {
+        "tags": [
+          "User - Hotels and Rooms"
+        ],
+        "summary": "Get recommended rooms",
+        "description": "Get recommended rooms for a specific hotel, sorted by booking history (least booked first).\n\n**Access:** USER role required\n\nThis endpoint implements a load balancing algorithm that recommends rooms with fewer bookings to distribute occupancy evenly across all rooms.\n",
+        "operationId": "getRecommendedRooms",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hotelId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "ID of the hotel to get recommendations for",
+            "example": 1
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date of the desired booking period",
+            "example": "2025-12-01"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date of the desired booking period",
+            "example": "2025-12-05"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of recommended rooms sorted by timesBooked (ascending)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoomDTO"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters"
+          },
+          "404": {
+            "description": "Hotel not found"
+          }
+        }
+      }
+    },
+    "/api/user": {
+      "post": {
+        "tags": [
+          "Admin - User Management"
+        ],
+        "summary": "Create user",
+        "description": "Create a new user with a specified role (USER or ADMIN).\n\n**Access:** ADMIN role required\n",
+        "operationId": "createUser",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateRequest"
+              },
+              "examples": {
+                "adminUser": {
+                  "summary": "Create admin user",
+                  "value": {
+                    "username": "admin_user",
+                    "password": "admin123",
+                    "role": "ADMIN"
+                  }
+                },
+                "regularUser": {
+                  "summary": "Create regular user",
+                  "value": {
+                    "username": "new_user",
+                    "password": "user123",
+                    "role": "USER"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data"
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          },
+          "409": {
+            "description": "Username already exists"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin - User Management"
+        ],
+        "summary": "Update user",
+        "description": "Update user information including username, password, and role.\n\n**Access:** ADMIN role required\n",
+        "operationId": "updateUser",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              },
+              "examples": {
+                "updateUsername": {
+                  "summary": "Update username",
+                  "value": {
+                    "userId": 1,
+                    "username": "john_doe_updated"
+                  }
+                },
+                "updateRole": {
+                  "summary": "Promote user to admin",
+                  "value": {
+                    "userId": 1,
+                    "role": "ADMIN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data"
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin - User Management"
+        ],
+        "summary": "Delete user",
+        "description": "Delete a user by ID. This permanently removes the user and all associated data.\n\n**Access:** ADMIN role required\n\n**Warning:** This operation cannot be undone.\n",
+        "operationId": "deleteUser",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "ID of the user to delete",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted successfully"
+          },
+          "403": {
+            "description": "Forbidden - Admin role required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/confirm-availability": {
+      "post": {
+        "tags": [
+          "Internal - Service Communication"
+        ],
+        "summary": "Confirm room availability (Internal)",
+        "description": "**Internal endpoint for inter-service communication**\n\nCalled by Booking Service to confirm and reserve room availability.\nCreates a room reservation in PENDING status.\n\n**Not exposed through API Gateway**\n",
+        "operationId": "confirmAvailability",
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "ID of the room to reserve",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmAvailabilityRequest"
+              },
+              "examples": {
+                "newReservation": {
+                  "value": {
+                    "bookingId": 1,
+                    "startDate": "2025-12-01",
+                    "endDate": "2025-12-05"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Availability confirmed and room reserved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmAvailabilityResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found"
+          },
+          "409": {
+            "description": "Room not available for the specified dates"
+          }
+        }
+      }
+    },
+    "/api/rooms/{roomId}/release": {
+      "post": {
+        "tags": [
+          "Internal - Service Communication"
+        ],
+        "summary": "Release reservation (Internal)",
+        "description": "**Internal endpoint for inter-service communication**\n\nCalled by Booking Service to release a room reservation (e.g., when booking is cancelled).\nUpdates reservation status to RELEASED.\n\n**Not exposed through API Gateway**\n",
+        "operationId": "releaseReservation",
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "ID of the room to release",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseReservationRequest"
+              },
+              "examples": {
+                "releaseBooking": {
+                  "value": {
+                    "bookingId": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Reservation released successfully"
+          },
+          "404": {
+            "description": "Reservation not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from /api/user/auth endpoint.\nToken is valid for 1 hour.\n\nFormat: `Authorization: Bearer <token>`\n"
+      }
+    },
+    "schemas": {
+      "UserRegistrationRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 50,
+            "description": "Unique username (3-50 characters)",
+            "example": "john_doe"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 100,
+            "format": "password",
+            "description": "Password (6-100 characters, will be hashed)",
+            "example": "password123"
+          }
+        }
+      },
+      "AuthenticationRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Registered username",
+            "example": "john_doe"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "User password",
+            "example": "password123"
+          }
+        }
+      },
+      "AuthenticationResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT token for authentication (valid for 1 hour)",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated username",
+            "example": "john_doe"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ROLE_USER",
+              "ROLE_ADMIN"
+            ],
+            "description": "User role",
+            "example": "ROLE_USER"
+          }
+        }
+      },
+      "UserDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "User ID",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "Username",
+            "example": "john_doe"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ROLE_USER",
+              "ROLE_ADMIN"
+            ],
+            "description": "User role",
+            "example": "ROLE_USER"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "User creation timestamp",
+            "example": "2025-10-19T10:30:00"
+          }
+        }
+      },
+      "UserCreateRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "role"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 50,
+            "description": "Unique username",
+            "example": "admin_user"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 100,
+            "format": "password",
+            "description": "Password (will be hashed with BCrypt)",
+            "example": "admin123"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "ADMIN"
+            ],
+            "description": "User role (USER or ADMIN)",
+            "example": "ADMIN"
+          }
+        }
+      },
+      "UserUpdateRequest": {
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "ID of user to update",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 50,
+            "description": "New username (optional)",
+            "example": "john_doe_updated"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 100,
+            "format": "password",
+            "description": "New password (optional, will be hashed)",
+            "example": "newpassword123"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "ADMIN"
+            ],
+            "description": "New role (optional)",
+            "example": "USER"
+          }
+        }
+      },
+      "BookingRequest": {
+        "type": "object",
+        "required": [
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "roomId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Specific room ID (required if autoSelect=false)",
+            "example": 1
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date of booking (must be in future)",
+            "example": "2025-12-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "End date of booking (must be after start date)",
+            "example": "2025-12-05"
+          },
+          "autoSelect": {
+            "type": "boolean",
+            "description": "Automatically select best available room",
+            "default": false,
+            "example": false
+          },
+          "hotelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hotel ID (required if autoSelect=true)",
+            "example": 1
+          }
+        }
+      },
+      "BookingResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Booking ID",
+            "example": 1
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "User ID who made the booking",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "Username who made the booking",
+            "example": "john_doe"
+          },
+          "roomId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Room ID that was booked",
+            "example": 1
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Booking start date",
+            "example": "2025-12-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Booking end date",
+            "example": "2025-12-05"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "CANCELLED"
+            ],
+            "description": "Booking status:\n- PENDING: Awaiting confirmation from hotel service\n- CONFIRMED: Booking confirmed and room reserved\n- CANCELLED: Booking was cancelled\n",
+            "example": "CONFIRMED"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Booking creation timestamp",
+            "example": "2025-10-19T10:30:00"
+          }
+        }
+      },
+      "HotelDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hotel ID",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Hotel name",
+            "example": "Grand Hotel"
+          },
+          "address": {
+            "type": "string",
+            "description": "Hotel address",
+            "example": "123 Main Street, New York, NY"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hotel creation timestamp",
+            "example": "2025-10-19T10:00:00"
+          }
+        }
+      },
+      "HotelCreateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "address"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Hotel name (max 100 characters)",
+            "example": "Grand Hotel"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Hotel address (max 255 characters)",
+            "example": "123 Main Street, New York, NY"
+          }
+        }
+      },
+      "RoomDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Room ID",
+            "example": 1
+          },
+          "hotelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hotel ID this room belongs to",
+            "example": 1
+          },
+          "number": {
+            "type": "string",
+            "description": "Room number",
+            "example": "101"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Current availability status (false if room is permanently unavailable)",
+            "example": true
+          },
+          "timesBooked": {
+            "type": "integer",
+            "description": "Total number of times this room has been booked (for load balancing)",
+            "example": 15
+          }
+        }
+      },
+      "RoomCreateRequest": {
+        "type": "object",
+        "required": [
+          "hotelId",
+          "number"
+        ],
+        "properties": {
+          "hotelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "ID of the hotel this room belongs to",
+            "example": 1
+          },
+          "number": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Room number (max 20 characters, e.g., \"101\", \"A1\")",
+            "example": "101"
+          }
+        }
+      },
+      "ConfirmAvailabilityRequest": {
+        "type": "object",
+        "required": [
+          "bookingId",
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Booking ID from booking service",
+            "example": 1
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Reservation start date",
+            "example": "2025-12-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Reservation end date",
+            "example": "2025-12-05"
+          }
+        }
+      },
+      "ConfirmAvailabilityResponse": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Whether the room is available for the requested dates",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message",
+            "example": "Room successfully reserved"
+          }
+        }
+      },
+      "ReleaseReservationRequest": {
+        "type": "object",
+        "required": [
+          "bookingId"
+        ],
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Booking ID to release",
+            "example": 1
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Error message"
+          },
+          "details": {
+            "type": "string",
+            "description": "Detailed error information",
+            "example": "Detailed error information"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Error timestamp",
+            "example": "2025-10-19T10:30:00"
+          }
+        }
+      },
+      "BookingPage": {
+        "type": "object",
+        "description": "Spring Data Page response for bookings",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingResponse"
+            },
+            "description": "List of bookings in this page"
+          },
+          "pageable": {
+            "type": "object",
+            "properties": {
+              "pageNumber": {
+                "type": "integer",
+                "description": "Current page number (0-indexed)",
+                "example": 0
+              },
+              "pageSize": {
+                "type": "integer",
+                "description": "Number of items per page",
+                "example": 10
+              },
+              "offset": {
+                "type": "integer",
+                "description": "Offset of the first item in this page",
+                "example": 0
+              }
+            }
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of items across all pages",
+            "example": 25
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "Total number of pages",
+            "example": 3
+          },
+          "last": {
+            "type": "boolean",
+            "description": "Whether this is the last page",
+            "example": false
+          },
+          "size": {
+            "type": "integer",
+            "description": "Page size",
+            "example": 10
+          },
+          "number": {
+            "type": "integer",
+            "description": "Current page number (0-indexed)",
+            "example": 0
+          },
+          "first": {
+            "type": "boolean",
+            "description": "Whether this is the first page",
+            "example": true
+          },
+          "numberOfElements": {
+            "type": "integer",
+            "description": "Number of items in this page",
+            "example": 10
+          },
+          "empty": {
+            "type": "boolean",
+            "description": "Whether the page is empty",
+            "example": false
+          }
+        }
+      },
+      "HotelStatisticsDTO": {
+        "type": "object",
+        "description": "Comprehensive statistics for a hotel including occupancy and booking metrics",
+        "properties": {
+          "hotelId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hotel ID",
+            "example": 1
+          },
+          "hotelName": {
+            "type": "string",
+            "description": "Hotel name",
+            "example": "Grand Hotel"
+          },
+          "totalRooms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of rooms in the hotel",
+            "example": 10
+          },
+          "availableRooms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of rooms currently available",
+            "example": 7
+          },
+          "unavailableRooms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of rooms currently unavailable",
+            "example": 3
+          },
+          "averageTimesBooked": {
+            "type": "number",
+            "format": "double",
+            "description": "Average number of times rooms have been booked (across all rooms)",
+            "example": 12.5
+          },
+          "totalReservations": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of confirmed reservations for all rooms",
+            "example": 45
+          },
+          "occupancyRate": {
+            "type": "number",
+            "format": "double",
+            "description": "Current occupancy rate as percentage (unavailable rooms / total rooms * 100)",
+            "example": 30.0
+          }
+        }
+      }
+    }
+  }
+}

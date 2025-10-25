@@ -1,0 +1,450 @@
+{
+  "info": {
+    "name": "Imported Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "User - Hotels and Rooms",
+      "item": [
+        {
+          "name": "Get recommended rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/rooms/recommend?hotelId=1&startDate=2025-12-01&endDate=2025-12-05",
+              "host": "{{host}}/api/rooms/recommend?hotelId=1&startDate=2025-12-01&endDate=2025-12-05",
+              "query": [
+                {
+                  "key": "hotelId",
+                  "value": "1"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2025-12-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-05"
+                }
+              ]
+            }
+          },
+          "event": [],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin - User Management",
+      "item": [
+        {
+          "name": "Get all users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/user",
+              "host": "{{host}}/api/user",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"username\": \"john_doe_updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/user",
+              "host": "{{host}}/api/user",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin_user\",\n  \"password\": \"admin123\",\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/user",
+              "host": "{{host}}/api/user",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "",
+              "host": "",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin - Hotel Management",
+      "item": [
+        {
+          "name": "Create hotel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "",
+              "host": "",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": " Get all hotels statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/hotels/statistics",
+              "host": "{{host}}/api/hotels/statistics",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Get hotel statistics by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/hotels/{hotelId}/statistics",
+              "host": "{{host}}/api/hotels/{hotelId}/statistics",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Confirm room availability (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": 1,\n  \"startDate\": \"2025-12-01\",\n  \"endDate\": \"2025-12-05\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/rooms/{roomId}/confirm-availability",
+              "host": "{{host}}/api/rooms/{roomId}/confirm-availability",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Create room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hotelId\": 1,\n  \"number\": \"101\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/rooms",
+              "host": "{{host}}/api/rooms",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Release reservation (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/rooms/{roomId}/release",
+              "host": "{{host}}/api/rooms/{roomId}/release",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User - Bookings",
+      "item": [
+        {
+          "name": "Get booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/booking/{id}",
+              "host": "{{host}}/api/booking/{id}",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Create booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": 1,\n  \"startDate\": \"2025-12-01\",\n  \"endDate\": \"2025-12-05\",\n  \"autoSelect\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/booking",
+              "host": "{{host}}/api/booking",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Get user bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/bookings",
+              "host": "{{host}}/api/bookings",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": " Cancel booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {}
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/booking/{id}",
+              "host": "{{host}}/api/booking/{id}",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "Register a new user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/user/register",
+              "host": "{{host}}/api/user/register",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        },
+        {
+          "name": "Authenticate user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host}}/api/user/auth",
+              "host": "{{host}}/api/user/auth",
+              "query": []
+            }
+          },
+          "event": [],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
